@@ -3,7 +3,7 @@ import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
-@Getter @Setter
+@Getter
 @NoArgsConstructor @AllArgsContructor
 public class ChatSendRequest {
     private Long senderId;
