@@ -1,9 +1,10 @@
-package com.example.chatapp.service;
-import com.example.*;
+package kr.co.carbohydrate.chat.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
+import kr.co.carbohydrate.chat.Dto.ChatMessage;
+import kr.co.carbohydrate.chat.repository.MessageRepository;
+import kr.co.carbohydrate.chat.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -20,7 +21,7 @@ public class ChatService {
 	
 	private final UserRepository userRepository;
 	private final MessageRepository messageRepository;
-	private final ObjectMapper objectMapper; // JSON 변환기
+	private final ObjectMapper objectMapper;
 	
 	//접속한 유저 관리 (메모리저장소)
 	private static final Map<String , WebSocketSession> userSessions = new ConcurrentHashMap<>();
@@ -76,8 +77,9 @@ public class ChatService {
 		
 		//귓속말
 		private void whisperMsgSend(WebSocketSession senderSession,ChatMessage msg) throws IOException{
-			msg.setSend_At(LocalDateTime.now());
-			String[] parts = msg.getContent().split(" ", 3);//메세지 자르기 ["/w", "예림", "안녕"]
+			if(msg.getContent().length() < 4) return; // 예외처리
+			String fullContent = msg.getContent().substring(3);
+			String[] parts = fullContent.split(" ", 2);
 			// 형식이 틀렸을 때
 			if (parts.length < 3) {
 				ChatMessage whisperfailMsg=new ChatMessage();

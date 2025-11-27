@@ -34,6 +34,9 @@ dependencies {
 
 	// DB(MariaDB)
 	runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+	//롬복
+	compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
 }
 
 tasks.named('test') {
