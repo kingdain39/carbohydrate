@@ -1,11 +1,20 @@
 package kr.co.carbohydrate.chat.controller;
+
+import org.apache.catalina.User;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.stereotype.Controller;
+
+import kr.co.carbohydrate.chat.service.ChatService;
+import kr.co.carbohydrate.chat.service.UserService;
+import lombok.RequiredArgsConstructor;
+
 @Controller
 @RequiredArgsConstructor
 public class ChatController{
 
-    private final MessageService messageService;
-    private final UserService;
-    private final SimpleMessagingTemplate;
+    private final ChatService messageService;
+    private final UserService userService;
+    private final SimpleMessagingTemplate messagingTemplate;
 
     @MessageMapping("/chat.send")
     public void sendMessage(@Payload ChatSendRequest request){
@@ -79,9 +88,6 @@ public class ChatController{
 
         messagingTemplate.convertAndSend("/topic/user",response);
     }
-
-
-
 
 
 }
