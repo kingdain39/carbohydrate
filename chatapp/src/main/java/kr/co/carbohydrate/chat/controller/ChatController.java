@@ -1,9 +1,15 @@
 package kr.co.carbohydrate.chat.controller;
+
+import org.springframework.stereotype.Controller;
+
+import kr.co.carbohydrate.chat.service.ChatService;
+import lombok.RequiredArgsConstructor;
+
 @Controller
 @RequiredArgsConstructor
 public class ChatController{
 
-    private final MessageService messageService;
+    private final ChatService messageService;
     private final UserService;
     private final SimpleMessagingTemplate;
 
