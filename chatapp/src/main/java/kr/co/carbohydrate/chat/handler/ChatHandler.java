@@ -1,8 +1,9 @@
-package com.example.chatapp.handler;
+package kr.co.carbohydrate.chat.handler;
 
-import com.example.chatapp.dto.ChatMessage;
-import com.example.chatapp.service.ChatService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import kr.co.carbohydrate.chat.dto.ChatMessage;
+import kr.co.carbohydrate.chat.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;

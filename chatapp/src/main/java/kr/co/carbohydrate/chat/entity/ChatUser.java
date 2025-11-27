@@ -1,4 +1,4 @@
-package com.example.chatapp.entity;
+package kr.co.carbohydrate.chat.entity;
 
 
 import jakarta.persistence.*;

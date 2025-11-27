@@ -1,3 +1,4 @@
+package kr.co.carbohydrate.chat.controller;
 @Controller
 @RequiredArgsConstructor
 public class ChatController{

@@ -1,12 +1,14 @@
-package com.example.chatapp.repository;
+package kr.co.carbohydrate.chat.repository;
 
 
-import com.example.chatapp.entity.MessageEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import kr.co.carbohydrate.chat.entity.MessageEntity;
 
 import java.util.List;
-
+@Repository
 public interface MessageRepository extends JpaRepository<MessageEntity, Long> {
 
     // 특정 사용자의 전체 대화 기록 불러오기

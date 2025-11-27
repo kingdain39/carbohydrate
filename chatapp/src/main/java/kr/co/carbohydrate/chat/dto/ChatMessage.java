@@ -1,4 +1,4 @@
-package com.example.chatapp.dto;
+package kr.co.carbohydrate.chat.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

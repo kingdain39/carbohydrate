@@ -1,11 +1,13 @@
-package com.example.chatapp.repository;
+package kr.co.carbohydrate.chat.repository;
 
 
-import com.example.chatapp.entity.ChatUser;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import kr.co.carbohydrate.chat.entity.ChatUser;
 
 import java.util.Optional;
-
+@Repository
 public interface UserRepository extends JpaRepository<ChatUser, Long> {
 
     // 닉네임으로 user 찾기
