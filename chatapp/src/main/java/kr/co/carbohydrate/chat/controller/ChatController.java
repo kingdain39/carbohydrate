@@ -1,8 +1,11 @@
 package kr.co.carbohydrate.chat.controller;
 
+import org.apache.logging.log4j.message.Message;
 import org.springframework.stereotype.Controller;
 
+import kr.co.carbohydrate.chat.entity.ChatUser;
 import kr.co.carbohydrate.chat.service.ChatService;
+import kr.co.carbohydrate.chat.service.UserService;
 import lombok.RequiredArgsConstructor;
 
 @Controller
@@ -10,12 +13,12 @@ import lombok.RequiredArgsConstructor;
 public class ChatController{
 
     private final ChatService messageService;
-    private final UserService;
+    private final UserService userService;
     private final SimpleMessagingTemplate;
 
     @MessageMapping("/chat.send")
     public void sendMessage(@Payload ChatSendRequest request){
-        User sender = userService.findById(request.getSenderId());
+        ChatUser sender = userService.findById(request.getSenderId());
 
         Message message = messageService.saveMessage(
                 sender,
@@ -37,11 +40,11 @@ public class ChatController{
 
     @MessageMapping("/chat.whisper")
     public void sendWhisper(@Payload WhisperRequest request) {
-        User sender = userService.findById(request.getSenderId());
-        User recipient = userService.findById(request.getRecipieintId());
+        ChatUser sender = userService.findById(request.getSenderId());
+        ChatUser recipient = userService.findById(request.getRecipieintId());
 
 
-        Message message = messageService.saveMasseage(
+        Message message = messageService.saveMesseage(
                 sender,
                 request.getContent(),
                 recipient
