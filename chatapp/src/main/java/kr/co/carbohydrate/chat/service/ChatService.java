@@ -2,33 +2,39 @@ package kr.co.carbohydrate.chat.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
 import kr.co.carbohydrate.chat.dto.ChatMessage;
+import kr.co.carbohydrate.chat.dto.ChatMessageResponse;
+import kr.co.carbohydrate.chat.dto.ChatSendRequest;
+import kr.co.carbohydrate.chat.dto.WhisperRequest;
+import kr.co.carbohydrate.chat.entity.ChatUser;
+import kr.co.carbohydrate.chat.entity.MessageEntity;
 import kr.co.carbohydrate.chat.repository.MessageRepository;
 import kr.co.carbohydrate.chat.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+
+import java.awt.print.Pageable;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.hibernate.query.Page;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.WebSocketSession;
 
 
 @Service
 @RequiredArgsConstructor //final 필드 자동 주입
+@Transactional
 public class ChatService {
 	
 	private final UserRepository userRepository;
 	private final MessageRepository messageRepository;
-	private final ObjectMapper objectMapper;
-	
-	//접속한 유저 관리 (메모리저장소)
-	private static final Map<String , WebSocketSession> userSessions = new ConcurrentHashMap<>();
 	
 	//시간 포매터
 	private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
-	
+	/*
 	//메세지 분배 (Controller에서 호출)
 		public void handleMessage(WebSocketSession session,ChatMessage msg) {
 			String content = msg.getContent();
@@ -41,139 +47,75 @@ public class ChatService {
 				broadcast(msg);
 				}
 		}
-		
-		
-		//모두에게 메세지 전송 (Broadcast)
-		private void broadcast(ChatMessage msg) throws IOException{
-			//DB 저장 (전체 채팅은 recipient가 null)
-			saveMsgToDB(msg, null);
-			//현재 시간 문자열 만들기 ("10:05")
-			String time = LocalDateTime.now().format(TIME_FORMATTER);
+		*/
+	//어떤 메세지인지 판단할 필요 없다. 
+	
+	
+		//1. 전체 채팅 처리 (DB에 저장, DTO반환)
+		@Transactional
+		public ChatMessageResponse savePublicMessage(ChatSendRequest request) {
+			// 1. 보낸 사람 확인
+	        ChatUser sender = userRepository.findById(request.getSenderId())
+	                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 			
-			//시간 붙이기
-			msg.setContent(msg.getContent() + " | " + time);
-			
-			//현재 접속해 있는 사람들에게 전송
-			for (WebSocketSession s : userSessions.values()) {
-		        if (s.isOpen()) {
-		        	sendToSession(s, msg);
-		        }
-		    }	
+	        //2. DB 엔티티 생성 및 저장
+	        MessageEntity entity = new MessageEntity();
+	        entity.setSenderId(sender.getId());
+	        entity.setRecipientId(null); // 전체 채팅이므로 null
+	        entity.setContent(request.getContent());
+	        entity.setSendAt(LocalDateTime.now());
+	        
+	        messageRepository.save(entity);
+	        
+	     // 3. 응답용 DTO로 변환해서 반환 (Controller가 이걸 받아서 뿌림)
+	        return toResponse(entity, sender.getUserName(), null, "CHAT");
+	        
 		}
 		
-		//보내기
-		private void sendToSession(WebSocketSession targetSession,ChatMessage msg) {
-			if(targetSession.isOpen()) {
-				// 객체를 JSON 문자열로 변환
-				try {
-					String json = objectMapper.writeValueAsString(msg);
-					targetSession.sendMessage(new TextMessage(json));
-				} catch(IOException e) {
-					e.printStackTrace();
-				}
-				
-			}
-		}
+		//2. 귓속말 저장 및 응답 DTO 반환
+		@Transactional
+		public ChatMessageResponse saveWhisperMessage(WhisperRequest request) {
+			// 1. 보낸 사람 & 받는 사람 확인
+			ChatUser sender = userRepository.findById(request.getSenderId())
+	                .orElseThrow(() -> new IllegalArgumentException("보낸 사람이 존재하지 않습니다."));
+	        ChatUser recipient = userRepository.findById(request.getRecipientId())
+	                .orElseThrow(() -> new IllegalArgumentException("받는 사람이 존재하지 않습니다."));
+	     // 2. DB 엔티티 생성 및 저장
+	        MessageEntity entity = new MessageEntity();
+	        entity.setSenderId(sender.getId());
+	        entity.setRecipientId(recipient.getId()); // 받는 사람 ID 저장
+	        entity.setContent(request.getContent());
+	        entity.setSendAt(LocalDateTime.now());
+
+	        messageRepository.save(entity);
+
+	        // 3. 응답용 DTO 반환
+	        return toResponse(entity, sender.getUserName(), recipient.getUserName(), "WHISPER");
 		
-		//귓속말
-		private void whisperMsgSend(WebSocketSession senderSession,ChatMessage msg) throws IOException{
-			if(msg.getContent().length() < 4) return; // 예외처리
-			String fullContent = msg.getContent().substring(3);
-			String[] parts = fullContent.split(" ", 2);
-			// 형식이 틀렸을 때
-			if (parts.length < 3) {
-				ChatMessage whisperfailMsg=new ChatMessage();
-				whisperfailMsg.setSender("시스템");
-				whisperfailMsg.setContent("형식 오류: /w [이름] [내용]");
-				sendToSession(senderSession, whisperfailMsg);
-				return;
-			}
-			//형식이 맞다면 보내기
-			String targetName = parts[1];   // 받는 사람 (예림)
-			String msgContent = parts[2];  // 진짜 내용 (안녕)
-			
-			WebSocketSession targetSession = userSessions.get(targetName);
-			
-			if(targetSession!=null&&targetSession.isOpen()) {
-				
-				String time = LocalDateTime.now().format(TIME_FORMATTER);
-				msg.setContent(msgContent);
-				saveMsgToDB(msg, targetName);
-				
-				//나한테 보내기
-				ChatMessage sentMsg = new ChatMessage();
-		        sentMsg.setSender(msg.getSender()); // 보낸 사람 (나)
-		        sentMsg.setContent("(나->"+ targetName + "<보냄>): " + msgContent+ " | " + time);
-		        sendToSession(senderSession, sentMsg);
-		        
-		        //받는사람에게 보내기
-		        ChatMessage receivedMsg = new ChatMessage();
-		        receivedMsg.setSender(msg.getSender()); // 보낸 사람 (나)
-		        receivedMsg.setContent("("+msg.getSender()+"->"+ targetName + "<받음>): " + msgContent+ " | " + time);
-		        sendToSession(targetSession, receivedMsg);
-		        
-			}
-			else {
-				//상대가 존재하지 않을 떄
-				ChatMessage errorMsg = new ChatMessage();
-				errorMsg.setSender("[ERROR]");
-		        errorMsg.setContent(targetName + "님은 현재 접속 중이 아닙니다.");
-		        sendToSession(senderSession, errorMsg);
-			}
-			
 		}
 		
 		
-		//메세지 로딩 (지난 대화 불러오기)
-		private void loadingMsgs(WebSocketSession session, String username) {
-			//1.내 정보 찾기
-			ChatUser me = userRepository.findByUsername(username).orElse(null);
-			if(me==null) return;
-			
-			//2. DB에서 내역 조회 id로 DB가져오기(userID를 통해 )
-			List<MessageEntity> history = messageRepository.findHistoryByUserId(me.getId());
-			
-			for(MessageEntity entity:history) {
-				ChatMessage msg = new ChatMessage();
-				
-				//3.보낸 사람 이름 찾기 (ID->이름)
-				String senderName=userRepository.findById(entity.getSenderId()).map(ChatUser::getUserName).orElse("(알수없음)");
-				msg.setSender(senderName);
-				
-				String time = entity.getSendAt().format(TIME_FORMATTER);
-				
-				//4. 내용 출력하기
-				//전체 채팅인 경우
-				if (entity.getRecipientId() == null || entity.getRecipientId() == 0) {
-                    msg.setContent(entity.getContent());
-                }
-				//귓속말 채팅인 경우
-				else {
-					//1) 내가 보낸 귓속말인경우 (Sender ID가 내 ID와 같음)
-					if(entity.getSenderId().equals(me.getId())) {
-						//이름 찾아오기
-						String recipientName=userRepository.findById(entity.getRecipientId()).map(ChatUser::getUserName).orElse("(알수없음)");
-						
-						msg.setContent("(나->"+ recipientName + "<보냄>): " + entity.getContent());
-					}
-					//2) 내가 받은 귓속말
-					else {
-						//이름 찾아오기
-						String SendertName=userRepository.findById(entity.getSenderId()).map(ChatUser::getUserName).orElse("(알수없음)");
-						msg.setContent("("+SendertName+"->"+  me.getName() + "<받음>): " + entity.getContent());
-					}
-					
-				}
-				msg.setContent(msg.getContent() + " | " + time);
-				//5)나에게만 전송
-				sendToSession(session, msg);
-			}
-			
-			ChatMessage sysMsg = new ChatMessage();
-            sysMsg.setSender("시스템");
-            sysMsg.setContent("------------ 지난 대화 내용 ------------");
-            sendToSession(session, sysMsg);
-		}
+		//*ID로 유저 이름 찾기 (입장/퇴장 메시지 처리용)
+		public String findUsername(Long userId) {
+	        return userRepository.findById(userId)
+	                .map(ChatUser::getUserName)
+	                .orElse("(알수없음)");
+	    }
+		
+		// 엔티티 -> Response DTO 변환 로직 (중복 제거)
+	    private ChatMessageResponse toResponse(MessageEntity entity, String senderName, String recipientName, String type) {
+	        return ChatMessageResponse.builder()
+	                .id(entity.getId())
+	                .type(type)
+	                .senderName(senderName)
+	                .recipientName(recipientName)
+	                .content(entity.getContent())
+	                .timestamp(entity.getSendAt())
+	                .build();
+	    }
+		
+		
+		
 		
 	//회원가입. 성공하면 true반환
 		@Transactional
@@ -209,42 +151,6 @@ public class ChatService {
         }
 	}
 	
-	
-	
-	//msg DB 저장
-	@Transactional
-	public void saveMsgToDB(ChatMessage msg,String recipientName) {
-		try {
-			// 시스템 메시지는 저장하지 않음 
-			if ("시스템".equals(msg.getSender()) || "[시스템]".equals(msg.getSender())) {
-					return;
-				}
-						
-			// 보낸 사람 찾기
-			ChatUser sender = userRepository.findByUsername(msg.getSender())
-					.orElseThrow(() -> new RuntimeException("User not found"));
-			
-			Long recipientId = null;
-			// 받는 사람 찾기 (귓속말일 때만)
-			if (recipientName != null ) {
-				ChatUser recipient = userRepository.findByUsername(recipientName).orElse(null);
-				if (recipient != null) recipientId = recipient.getId();
-			}
-			
-			// Entity 생성
-			MessageEntity entity = new MessageEntity();
-			entity.setSenderId(sender.getId());
-			entity.setRecipientId(recipientId);
-			entity.setContent(msg.getContent());
-			entity.setSendAt(LocalDateTime.now());
-			
-			// 저장
-			messageRepository.save(entity);
-			
-		} catch (Exception e) {
-			System.out.println("DB 저장 실패: " + e.getMessage());
-		}
-	}
 	
 	//채팅방 입장
 		public void userEnter(String username,WebSocketSession userSession) {
