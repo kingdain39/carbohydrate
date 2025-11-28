@@ -116,7 +116,7 @@ public class ChatService {
 		
 		//유저입장
 		public void userJoin(String username) {
-			loadHistory(username);
+			loadHistory(username);  //지난 내역 불러오기
 			ChatMessageResponse systemChatMessage=new ChatMessageResponse();
 	        systemChatMessage.setSenderName("[시스템]"); // 보낸 사람 설정
 	        String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
@@ -135,6 +135,8 @@ public class ChatService {
          // 3. 전체 방송
             messagingTemplate.convertAndSend("/topic/public", chatMessage);
 		}
+		
+		
 		
 		/*
 		

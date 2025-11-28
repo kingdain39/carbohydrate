@@ -91,7 +91,6 @@ public class ChatController{
         headerAccessor.getSessionAttributes().put("userName", user.getUserName());
         //3.서비스 호출
         chatService.userJoin(user.getUserName());
-        
     }
     
     
