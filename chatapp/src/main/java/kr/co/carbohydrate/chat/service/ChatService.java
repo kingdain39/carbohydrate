@@ -5,7 +5,7 @@ import kr.co.carbohydrate.chat.dto.ChatMessage;
 import kr.co.carbohydrate.chat.dto.ChatMessageResponse;
 import kr.co.carbohydrate.chat.dto.ChatSendRequest;
 import kr.co.carbohydrate.chat.dto.WhisperRequest;
-import kr.co.carbohydrate.chat.entity.ChatUser;
+import kr.co.carbohydrate.chat.entity.ChatUserEntity;
 import kr.co.carbohydrate.chat.entity.MessageEntity;
 import kr.co.carbohydrate.chat.repository.MessageRepository;
 import kr.co.carbohydrate.chat.repository.UserRepository;
@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.hibernate.query.Page;
 import org.springframework.data.domain.Slice;
+import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -31,7 +32,7 @@ public class ChatService {
 	
 	private final UserRepository userRepository;
 	private final MessageRepository messageRepository;
-	
+	private SimpMessageSendingOperations messagingTemplate;
 	//시간 포매터
 	private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 	/*
@@ -55,7 +56,7 @@ public class ChatService {
 		@Transactional
 		public ChatMessageResponse savePublicMessage(ChatSendRequest request) {
 			// 1. 보낸 사람 확인
-	        ChatUser sender = userRepository.findById(request.getSenderId())
+	        ChatUserEntity sender = userRepository.findById(request.getSenderId())
 	                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 			
 	        //2. DB 엔티티 생성 및 저장
@@ -76,9 +77,9 @@ public class ChatService {
 		@Transactional
 		public ChatMessageResponse saveWhisperMessage(WhisperRequest request) {
 			// 1. 보낸 사람 & 받는 사람 확인
-			ChatUser sender = userRepository.findById(request.getSenderId())
+			ChatUserEntity sender = userRepository.findById(request.getSenderId())
 	                .orElseThrow(() -> new IllegalArgumentException("보낸 사람이 존재하지 않습니다."));
-	        ChatUser recipient = userRepository.findById(request.getRecipientId())
+	        ChatUserEntity recipient = userRepository.findById(request.getRecipientId())
 	                .orElseThrow(() -> new IllegalArgumentException("받는 사람이 존재하지 않습니다."));
 	     // 2. DB 엔티티 생성 및 저장
 	        MessageEntity entity = new MessageEntity();
@@ -91,16 +92,8 @@ public class ChatService {
 
 	        // 3. 응답용 DTO 반환
 	        return toResponse(entity, sender.getUserName(), recipient.getUserName(), "WHISPER");
-		
 		}
 		
-		
-		//*ID로 유저 이름 찾기 (입장/퇴장 메시지 처리용)
-		public String findUsername(Long userId) {
-	        return userRepository.findById(userId)
-	                .map(ChatUser::getUserName)
-	                .orElse("(알수없음)");
-	    }
 		
 		// 엔티티 -> Response DTO 변환 로직 (중복 제거)
 	    private ChatMessageResponse toResponse(MessageEntity entity, String senderName, String recipientName, String type) {
@@ -113,20 +106,48 @@ public class ChatService {
 	                .timestamp(entity.getSendAt())
 	                .build();
 	    }
+	    
+	    
+	    //전 메세지 로드
+		public void loadHistory(String username) {
+			// TODO Auto-generated method stub
+			
+		}
 		
+		//유저입장
+		public void userJoin(String username) {
+			loadHistory(username);
+			ChatMessageResponse systemChatMessage=new ChatMessageResponse();
+	        systemChatMessage.setSenderName("[시스템]"); // 보낸 사람 설정
+	        String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
+	        systemChatMessage.setContent(username + "님이 입장하셨습니다. | " + time);
+	     // 5. 전체 방송 (모두에게 알림)
+	        messagingTemplate.convertAndSend("/topic/public",systemChatMessage);
+		}
 		
+		//유저 퇴장
+		public void userExit(String username) {
+			ChatMessageResponse chatMessage = new ChatMessageResponse();
+            chatMessage.setSenderName("[시스템]");
+            String time = LocalDateTime.now().format(TIME_FORMATTER);
+            chatMessage.setContent(username + "님이 퇴장하셨습니다. | " + time);
+            
+         // 3. 전체 방송
+            messagingTemplate.convertAndSend("/topic/public", chatMessage);
+		}
 		
+		/*
 		
 	//회원가입. 성공하면 true반환
 		@Transactional
 		public boolean userRegister(String username,String password) {
 				//유저가 있는지 확인
-				if(userRepository.existsByUsername(username)) {
+				if(userRepository.exists(username)) {
 					System.out.println("존재하는 아이디 입니다.");
 					return false;
 				}
 				else {
-					ChatUser user=new ChatUser();
+					ChatUserEntity user=new ChatUserEntity();
 					user.setUserName(username);
 					user.setUserPassword(password);
 					user.setCreatedAt(LocalDateTime.now());
@@ -141,7 +162,7 @@ public class ChatService {
 	//로그인
 	public boolean userLogin(String username,String password) {
 		// 1. 아이디로 유저 정보 가져오기 (없으면 null 반환)
-        ChatUser user = userRepository.findByUsername(username).orElse(null);
+        ChatUserEntity user = userRepository.findByUsername(username).orElse(null);
      // 2. 유저가 존재하고(null이 아님) && 비밀번호가 일치하는지 확인
 		if(user != null && user.getUserPassword().equals(password)) {
 			return true;//로그인 성공
@@ -150,37 +171,7 @@ public class ChatService {
             return false; // 아이디가 없거나, 비밀번호가 틀림
         }
 	}
+	*/
 	
 	
-	//채팅방 입장
-		public void userEnter(String username,WebSocketSession userSession) {
-			//채팅방 유저 목록에 저장!
-			userSessions.put(username, userSession);
-			//메세지 보내기! (입장알림방송)
-			ChatMessage welcomeMsg=new ChatMessage();
-			welcomeMsg.setSender("[시스템]");
-			welcomeMsg.setContent(username + "님이 입장 하셨습니다.");
-			loadingMsgs(userSession,username);
-			try {
-		        broadcast(welcomeMsg);
-		    } catch (IOException e) {
-		        e.printStackTrace();
-		    }
-		}
-		//채팅방 퇴장
-		public void userExit(String username) {
-			//채팅방 유저 목록에서 뺴기
-			userSessions.remove(username);
-			//메세지 보내기! (입장알림방송)
-			ChatMessage exitMsg=new ChatMessage();
-			exitMsg.setSender("[시스템]");
-			exitMsg.setContent(username + "님이 퇴장 하셨습니다.");
-			exitMsg.setSend_At(LocalDateTime.now());
-			try {
-		        broadcast(exitMsg);
-		    } catch (IOException e) {
-		        e.printStackTrace();
-		    }
-		}
-
 }
