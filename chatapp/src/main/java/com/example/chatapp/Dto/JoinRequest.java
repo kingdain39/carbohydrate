@@ -3,7 +3,7 @@ import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
-@Getter @Setter
+@Getter
 @NoArgsConstructor @AllArgsConstructor
 public class JoinRequest {
     private Long userId;     // 입장한 사람 id

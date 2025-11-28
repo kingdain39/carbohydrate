@@ -4,7 +4,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 @Getter
-@NoArgsConstructor @AllArgsContructor
+@NoArgsConstructor @AllArgsConstructor
 public class ChatSendRequest {
     private Long senderId;
     private String content;
