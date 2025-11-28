@@ -5,9 +5,9 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
 
-@Getter @Setter
+@Getter
 @Builder
-@NoArgsConstructor @AllArgsConstructor
+@NoArgsConstructor
 public class ChatMessageResponse {
 
     private Long id;             // 메시지 고유 id (DB 저장된 번호)
