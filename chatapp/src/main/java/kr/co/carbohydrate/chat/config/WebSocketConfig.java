@@ -18,14 +18,8 @@ import kr.co.carbohydrate.chat.handler.ChatHandler;
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketConfigurer,WebSocketMessageBrokerConfigurer {
 
-    private final ChatHandler chatHandler;
+   
 
-    @Override
-    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-
-        registry.addHandler(chatHandler, "/chat")
-                .setAllowedOrigins("*");  // 모든 프론트 접근 허용
-    }
     
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
