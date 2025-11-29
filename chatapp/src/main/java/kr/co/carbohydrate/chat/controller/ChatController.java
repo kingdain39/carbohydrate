@@ -52,9 +52,11 @@ public class ChatController{
     		SimpMessageHeaderAccessor headerAccessor){
     	// 1. 유저 정보 조회
         ChatUserEntity user = userService.findById(request.getUserId());
-        // 2. 웹소켓 세션에 사용자 이름 저장! (퇴장 감지용)
+        //2.1 유저정보넣기
+        userService.addActiveUser(user.getUserName());
+        // 2.2 웹소켓 세션에 사용자 이름 저장! (퇴장 감지용)
         // ★ 중요: 여기서 저장한 "userName"을 나중에 Listener에서 꺼내 씁니다.
-        headerAccessor.getSessionAttributes().put("userName", user.getUserName());
+        headerAccessor.getSessionAttributes().put("username", user.getUserName());
         //3.서비스 호출
         chatService.userJoin(user.getUserName());
     }

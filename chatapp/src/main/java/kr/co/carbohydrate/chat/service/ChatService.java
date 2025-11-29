@@ -1,32 +1,22 @@
 package kr.co.carbohydrate.chat.service;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
-import kr.co.carbohydrate.chat.dto.ChatMessage;
 import kr.co.carbohydrate.chat.dto.ChatMessageResponse;
 import kr.co.carbohydrate.chat.dto.ChatSendRequest;
 import kr.co.carbohydrate.chat.dto.WhisperRequest;
 import kr.co.carbohydrate.chat.entity.ChatUserEntity;
 import kr.co.carbohydrate.chat.entity.MessageEntity;
 import kr.co.carbohydrate.chat.repository.MessageRepository;
-import kr.co.carbohydrate.chat.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 
-import java.awt.print.Pageable;
-import java.io.IOException;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import org.hibernate.query.Page;
-import org.springframework.data.domain.Slice;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
-import org.springframework.web.socket.WebSocketSession;
 
 
 @Service
@@ -34,35 +24,15 @@ import org.springframework.web.socket.WebSocketSession;
 @Transactional
 public class ChatService {
 	
-	private  UserRepository userRepository;
-	private  MessageRepository messageRepository;
-	private SimpMessageSendingOperations messagingTemplate;
-	private UserService userService;
-	//시간 포매터
-	private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
-	/*
-	//메세지 분배 (Controller에서 호출)
-		public void handleMessage(WebSocketSession session,ChatMessage msg) {
-			String content = msg.getContent();
-			//귓속말인지 판단
-			if (content != null && content.startsWith("/w")) {
-				whisperMsgSend(session, msg);
-			}
-			// 모두에게 보내는 메세지
-			else {
-				broadcast(msg);
-				}
-		}
-		*/
-	//어떤 메세지인지 판단할 필요 없다. 
-	
-	
-		//1. 전체 채팅 처리 (DB에 저장, DTO반환)
+
+	private final MessageRepository messageRepository;
+	private final SimpMessageSendingOperations messagingTemplate;
+	private final UserService userService;
+	//1. 전체 채팅 처리 (DB에 저장, DTO반환)
 		@Transactional
 		public ChatMessageResponse savePublicMessage(ChatSendRequest request) {
 			// 1. 보낸 사람 확인
-	        ChatUserEntity sender = userRepository.findById(request.getSenderId())
-	                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+			ChatUserEntity sender = userService.findById(request.getSenderId());
 			
 	        //2. DB 엔티티 생성 및 저장
 	        MessageEntity entity = new MessageEntity();
@@ -82,11 +52,15 @@ public class ChatService {
 		@Transactional
 		public ChatMessageResponse saveWhisperMessage(WhisperRequest request) {
 			// 1. 보낸 사람 & 받는 사람 확인
-			ChatUserEntity sender = userRepository.findById(request.getSenderId())
-	                .orElseThrow(() -> new IllegalArgumentException("보낸 사람이 존재하지 않습니다."));
-	        ChatUserEntity recipient = userRepository.findById(request.getRecipientId())
-	                .orElseThrow(() -> new IllegalArgumentException("받는 사람이 존재하지 않습니다."));
-	     // 2. DB 엔티티 생성 및 저장
+			ChatUserEntity sender = userService.findById(request.getSenderId());
+			ChatUserEntity recipient = userService.findById(request.getRecipientId());
+			
+			//2. 받는 사람이 현재 접속 중인지 확인!
+	        if (!userService.isUserActive(recipient.getUserName())) {
+	            throw new IllegalArgumentException(recipient.getUserName() + "님은 현재 접속 중이 아닙니다.");
+	        }
+			
+			// 3. DB 엔티티 생성 및 저장
 	        MessageEntity entity = new MessageEntity();
 	        entity.setSenderId(sender.getId());
 	        entity.setRecipientId(recipient.getId()); // 받는 사람 ID 저장
@@ -123,9 +97,7 @@ public class ChatService {
 		public void loadHistory(String username) {
 			// TODO Auto-generated method stub
 			//1. 요청한 유저 정보 조회
-			ChatUserEntity me = userRepository.findByUserName(username)
-	                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-			
+			ChatUserEntity me = userService.findByUserName(username);
 			// 2. DB에서 권한이 있는 모든 메시지 조회
 	        List<MessageEntity> historyEntities = messageRepository.findHistoryByUserId(me.getId());
 	        
@@ -140,7 +112,7 @@ public class ChatService {
 	            }
 	        }
 	        // 4. 수집된 ID들의 유저 정보를 '한 번의 쿼리'로 모두 조회
-	        List<ChatUserEntity> users = userRepository.findAllById(userIds);
+	        List<ChatUserEntity> users = userService.findAllByIds(userIds);
 	        // 5. 조회된 유저 정보를 검색하기 쉬운 Map<ID, 이름> 형태로 변환
 	        Map<Long, String> userNameMap = users.stream()
 	                .collect(Collectors.toMap(ChatUserEntity::getId, ChatUserEntity::getUserName));

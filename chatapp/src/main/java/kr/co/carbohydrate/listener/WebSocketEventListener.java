@@ -16,8 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 public class WebSocketEventListener {
 	// 메시지를 직접 쏘는 도구 (Controller의 @SendTo 대신 씀)
 	
-	private ChatService chatService;
-	private UserService userService;;
+	private final ChatService chatService;
+	private final UserService userService;;
 	//[퇴장 감지] 연결이 끊기면(Disconnect) 스프링이 자동으로 이 함수를 실행시킴
 	@EventListener
 	public void handleWebSocketDisconnectListener(SessionDisconnectEvent event) {

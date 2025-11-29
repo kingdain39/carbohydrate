@@ -1,5 +1,6 @@
 package kr.co.carbohydrate.chat.service;
 
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -29,6 +30,23 @@ public class UserService {
 		activeUsers.add(username);
 		System.out.println("★ 접속자 추가: " + username + " (총 " + activeUsers.size() + "명)");
 	}
+	// 이름으로 조회
+    @Transactional
+    public ChatUserEntity findByUserName(String username) {
+        return userRepository.findByUserName(username)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다. Name: " + username));
+    }
+
+    // 여러 명 조회 
+    @Transactional
+    public List<ChatUserEntity> findAllByIds(Set<Long> userIds) {
+        return userRepository.findAllById(userIds);
+    }
+
+    // 접속 중인지 확인 
+    public boolean isUserActive(String username) {
+        return activeUsers.contains(username);
+    }
 	
 	//접속중인 유저 관리(명단 제거)
 		public void removeActiveUser(String username) {
