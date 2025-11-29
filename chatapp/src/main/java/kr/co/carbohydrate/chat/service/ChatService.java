@@ -1,7 +1,5 @@
 package kr.co.carbohydrate.chat.service;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
-import kr.co.carbohydrate.chat.dto.ChatMessage;
 import kr.co.carbohydrate.chat.dto.ChatMessageResponse;
 import kr.co.carbohydrate.chat.dto.ChatSendRequest;
 import kr.co.carbohydrate.chat.dto.WhisperRequest;
