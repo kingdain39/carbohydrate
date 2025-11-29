@@ -34,9 +34,10 @@ import org.springframework.web.socket.WebSocketSession;
 @Transactional
 public class ChatService {
 	
-	private final UserRepository userRepository;
-	private final MessageRepository messageRepository;
+	private  UserRepository userRepository;
+	private  MessageRepository messageRepository;
 	private SimpMessageSendingOperations messagingTemplate;
+	private UserService userService;
 	//시간 포매터
 	private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 	/*
@@ -140,7 +141,6 @@ public class ChatService {
 	        }
 	        // 4. 수집된 ID들의 유저 정보를 '한 번의 쿼리'로 모두 조회
 	        List<ChatUserEntity> users = userRepository.findAllById(userIds);
-	        
 	        // 5. 조회된 유저 정보를 검색하기 쉬운 Map<ID, 이름> 형태로 변환
 	        Map<Long, String> userNameMap = users.stream()
 	                .collect(Collectors.toMap(ChatUserEntity::getId, ChatUserEntity::getUserName));
@@ -172,24 +172,36 @@ public class ChatService {
 		
 		//유저입장
 		public void userJoin(String username) {
-			loadHistory(username);  //지난 내역 불러오기
-			ChatMessageResponse systemChatMessage=new ChatMessageResponse();
-	        systemChatMessage.setSenderName("[시스템]"); // 보낸 사람 설정
-	        String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
-	        systemChatMessage.setContent(username + "님이 입장하셨습니다. | " + time);
+			loadHistory(username);  //지난 내역 불러오기 (개인)
+			//입장알림(전체)
+			ChatMessageResponse systemMsg = ChatMessageResponse.builder()
+	                .senderName("[시스템]")
+	                .content(username + "님이 입장하셨습니다.")
+	                .type("JOIN")
+	                .timestamp(LocalDateTime.now())
+	                .build();
 	     // 5. 전체 방송 (모두에게 알림)
-	        messagingTemplate.convertAndSend("/topic/public",systemChatMessage);
+	        messagingTemplate.convertAndSend("/topic/public",systemMsg);
+	        
+	     // 6. 갱신된 접속자 명단 방송 (전체)
+	        // UserService에서 명단을 가져와서 '/topic/users' 구독자들에게 쏩니다.
+	        messagingTemplate.convertAndSend("/topic/users", userService.getActiveUsers());
 		}
+		
 		
 		//유저 퇴장
 		public void userExit(String username) {
-			ChatMessageResponse chatMessage = new ChatMessageResponse();
-            chatMessage.setSenderName("[시스템]");
-            String time = LocalDateTime.now().format(TIME_FORMATTER);
-            chatMessage.setContent(username + "님이 퇴장하셨습니다. | " + time);
-            
-         // 3. 전체 방송
-            messagingTemplate.convertAndSend("/topic/public", chatMessage);
+			// (1) 퇴장 알림 방송
+	        ChatMessageResponse systemMsg = ChatMessageResponse.builder()
+	                .senderName("[시스템]")
+	                .content(username + "님이 퇴장하셨습니다.")
+	                .type("LEAVE")
+	                .timestamp(LocalDateTime.now())
+	                .build();
+	        messagingTemplate.convertAndSend("/topic/public", systemMsg);
+
+	        // (2) [핵심] 갱신된 접속자 명단 방송 (누군가 나갔으니 다시 쏴야 함)
+	        messagingTemplate.convertAndSend("/topic/users", userService.getActiveUsers());
 		}
 		
 		
