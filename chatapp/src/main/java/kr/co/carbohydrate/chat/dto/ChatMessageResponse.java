@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @Setter
 @Builder
 @NoArgsConstructor
+@AllArgsConstructor
 public class ChatMessageResponse {
 
     private Long id;             // 메시지 고유 id (DB 저장된 번호)
