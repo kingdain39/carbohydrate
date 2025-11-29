@@ -10,13 +10,13 @@ import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
-import kr.co.carbohydrate.chat.handler.ChatHandler;
+
 
 @Configuration
 @EnableWebSocket
 @RequiredArgsConstructor
 @EnableWebSocketMessageBroker
-public class WebSocketConfig implements WebSocketConfigurer,WebSocketMessageBrokerConfigurer {
+public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
    
 
@@ -39,6 +39,7 @@ public class WebSocketConfig implements WebSocketConfigurer,WebSocketMessageBrok
         // 서버가 "/topic/public"으로 쏘면 구독자들이 받음
         registry.enableSimpleBroker("/topic", "/queue"); 
     }
-    
+
+	
     
 }
