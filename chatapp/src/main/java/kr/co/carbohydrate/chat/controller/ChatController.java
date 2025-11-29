@@ -1,9 +1,5 @@
 package kr.co.carbohydrate.chat.controller;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-
-import org.apache.logging.log4j.message.Message;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -13,6 +9,7 @@ import org.springframework.stereotype.Controller;
 import kr.co.carbohydrate.chat.dto.ChatMessageResponse;
 import kr.co.carbohydrate.chat.dto.ChatSendRequest;
 import kr.co.carbohydrate.chat.dto.JoinRequest;
+import kr.co.carbohydrate.chat.dto.WhisperRequest;
 import kr.co.carbohydrate.chat.entity.ChatUserEntity;
 import kr.co.carbohydrate.chat.service.ChatService;
 import kr.co.carbohydrate.chat.service.UserService;
@@ -29,53 +26,22 @@ public class ChatController{
     
     @MessageMapping("/chat.send")
     public void sendMessage(@Payload ChatSendRequest request){
-    	ChatUserEntity sender = userService.findById(request.getSenderId());
-
-        Message message = chatService.saveMessage(
-                sender,
-                request.getContent(),
-                null
-        );
-
-
-        ChatMessageResponse response = ChatMessageResponse.builder()
-                .type("CHAT")
-                .senderName(sender.getUserName())
-                .content(request.getContent())
-                .timestamp(LocalDateTime.now())
-                .build();
-
-        messagingTemplate.converAndSend("/topic/public",response);
+        //빌드하는거 싹 삭제하고 서비스 불러주미
+        ChatMessageResponse response = chatService.savePublicMessage(request);//requst dto그대로 걍 넘겨줌.
+        messagingTemplate.convertAndSend("/topic/public",response); //이거가 응답을 /topic/public을 구독중인 모두에게 브로드캐스팅하는거
     }
-
 
     @MessageMapping("/chat.whisper")
     public void sendWhisper(@Payload WhisperRequest request) {
-        ChatUser sender = userService.findById(request.getSenderId());
-        ChatUser recipient = userService.findById(request.getRecipieintId());
+        ChatMessageResponse response = chatService.saveWhisperMessage(request);
 
-
-        Message message = messageService.saveMesseage(
-                sender,
-                request.getContent(),
-                recipient
-        );
-
-        ChatMessageResponse response = ChatMessageResponse.builder()
-                .type("WHISPER")
-                .senderName(sender.getUserName())
-                .content(request.getContent())
-                .timestamp(LocalDateTime.now())
-                .build();
-
-
-        messagingTemplate.convertAndSendToUser(
-                sender.getUserName(),
+        messagingTemplate.convertAndSendToUser( // 특정유저의 /queue/whisper에다가만 브로드캐슽ㅇ
+                response.getSenderName(),  //이거는 자기가 남에게 보낸 귓속말 메세지
                 "/queue/whisper",
                 response
         );
         messagingTemplate.convertAndSendToUser(
-                recipient.getUserName(),
+                response.getRecipientName(), //이건 수신자용 남으로부터 받은 귓속말메세지띄워주기
                 "/queue/whisper",
                 response
         );
