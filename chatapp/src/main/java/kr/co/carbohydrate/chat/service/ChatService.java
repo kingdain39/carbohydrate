@@ -15,6 +15,7 @@ import java.awt.print.Pageable;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -26,7 +27,7 @@ import org.springframework.web.socket.WebSocketSession;
 
 
 @Service
-@RequiredArgsConstructor //final 필드 자동 주입
+@RequiredArgsConstructor 
 @Transactional
 public class ChatService {
 	
@@ -108,10 +109,22 @@ public class ChatService {
 	    }
 	    
 	    
-	    //전 메세지 로드
+	    
+	    
+	    /**
+	     * 채팅 히스토리 로드
+	     * 책임: 해당 유저가 볼 수 있는 모든 메시지를 조회하고, 
+	     * ID로 저장된 보낸이/받는이 정보를 실제 이름(UserName)으로 변환하여 전송.
+	     */
 		public void loadHistory(String username) {
 			// TODO Auto-generated method stub
+			//1. 요청한 유저 정보 조회
+			ChatUserEntity me = userRepository.findByUserName(username)
+	                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 			
+			// 2. DB에서 권한이 있는 모든 메시지 조회 (Repository 수정 필요)
+	        List<MessageEntity> historyEntities = messageRepository.findHistoryByUserId(me.getId());
+	        
 		}
 		
 		//유저입장
