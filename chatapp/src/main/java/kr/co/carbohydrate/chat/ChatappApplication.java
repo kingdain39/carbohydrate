@@ -1,4 +1,4 @@
-package com.example.chatapp;
+package kr.co.carbohydrate.chat;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

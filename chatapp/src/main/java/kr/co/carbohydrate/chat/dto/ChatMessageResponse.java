@@ -1,3 +1,4 @@
+package kr.co.carbohydrate.chat.dto;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
