@@ -15,9 +15,12 @@ import java.awt.print.Pageable;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import org.hibernate.query.Page;
 import org.springframework.data.domain.Slice;
@@ -122,9 +125,49 @@ public class ChatService {
 			ChatUserEntity me = userRepository.findByUserName(username)
 	                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 			
-			// 2. DB에서 권한이 있는 모든 메시지 조회 (Repository 수정 필요)
+			// 2. DB에서 권한이 있는 모든 메시지 조회
 	        List<MessageEntity> historyEntities = messageRepository.findHistoryByUserId(me.getId());
 	        
+	        if (historyEntities.isEmpty()) return;
+	        
+	        // 3. 메시지 리스트에 등장하는 모든 유저 ID 수집 (senderId, recipientId)
+	        Set<Long> userIds = new HashSet<>();
+	        for (MessageEntity msg : historyEntities) {
+	            userIds.add(msg.getSenderId());
+	            if (msg.getRecipientId() != null) {
+	                userIds.add(msg.getRecipientId());
+	            }
+	        }
+	        // 4. 수집된 ID들의 유저 정보를 '한 번의 쿼리'로 모두 조회
+	        List<ChatUserEntity> users = userRepository.findAllById(userIds);
+	        
+	        // 5. 조회된 유저 정보를 검색하기 쉬운 Map<ID, 이름> 형태로 변환
+	        Map<Long, String> userNameMap = users.stream()
+	                .collect(Collectors.toMap(ChatUserEntity::getId, ChatUserEntity::getUserName));
+	        
+	        // 6. Entity -> Response DTO 변환 (Map에서 이름 찾아 넣기)
+	        List<ChatMessageResponse> responseList = historyEntities.stream()
+	                .map(msg -> {
+	                    // ID에 해당하는 이름 찾기 (없으면 알수없음 처리)
+	                    String senderName = userNameMap.getOrDefault(msg.getSenderId(), "(알수없음)");
+	                    String recipientName = (msg.getRecipientId() != null) 
+	                            ? userNameMap.getOrDefault(msg.getRecipientId(), "(알수없음)") 
+	                            : null;
+	                    
+	                    String type = (msg.getRecipientId() != null) ? "WHISPER" : "CHAT";
+
+	                    return toResponse(msg, senderName, recipientName, type);
+	                })
+	                .collect(Collectors.toList());
+	        
+	        // 7. 해당 유저에게만 히스토리 리스트 전송
+	        // 클라이언트는 /user/queue/history 를 구독하고 있어야 함
+	        messagingTemplate.convertAndSendToUser(
+	                username, 
+	                "/queue/history", 
+	                responseList
+	        );
+	    
 		}
 		
 		//유저입장
