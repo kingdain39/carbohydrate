@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
 
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 public class ChatMessageResponse {
