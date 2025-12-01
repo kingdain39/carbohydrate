@@ -19,9 +19,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ChatController{
 
-    private ChatService chatService;
-    private UserService userService;
-    private SimpMessageSendingOperations messagingTemplate;
+    private final ChatService chatService;
+    private final UserService userService;
+    private final SimpMessageSendingOperations messagingTemplate;
 
     
     @MessageMapping("/chat.send")
