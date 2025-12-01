@@ -7,7 +7,7 @@ import lombok.AllArgsConstructor;
 @Getter
 @NoArgsConstructor @AllArgsConstructor
 public class WhisperRequest {
-    private Long senderId;      // 누가
+    private Long senderId;
     private Long recipientId;   // 누구에게 (★추가됨)
     private String content;     // 내용을
 }

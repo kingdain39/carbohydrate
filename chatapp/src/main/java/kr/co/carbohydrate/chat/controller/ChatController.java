@@ -8,7 +8,6 @@ import org.springframework.stereotype.Controller;
 
 import kr.co.carbohydrate.chat.dto.ChatMessageResponse;
 import kr.co.carbohydrate.chat.dto.ChatSendRequest;
-import kr.co.carbohydrate.chat.dto.JoinRequest;
 import kr.co.carbohydrate.chat.dto.WhisperRequest;
 import kr.co.carbohydrate.chat.entity.ChatUserEntity;
 import kr.co.carbohydrate.chat.service.ChatService;
@@ -25,7 +24,13 @@ public class ChatController{
 
     
     @MessageMapping("/chat.send")
-    public void sendMessage(@Payload ChatSendRequest request){
+    public void sendMessage(@Payload ChatSendRequest request,
+                            SimpMessageHeaderAccessor headerAccessor
+    ){
+        //senderId 덮어쓰기(클라이언트가 보낸값을 그대로 쓰지않고 세션에서 정확한 userId를 추출해서 서버로 넘기기위함) : 먼저 세션 userId추출
+        Long userId = (Long) headerAccessor.getSessionAttributes().get("userId");
+        //request 의 senderId로 덮어씀.
+        request.setSenderId(userId);
         //빌드하는거 싹 삭제하고 서비스 불러주미
         ChatMessageResponse response = chatService.savePublicMessage(request);//requst dto그대로 걍 넘겨줌.
         messagingTemplate.convertAndSend("/topic/public",response); //이거가 응답을 /topic/public을 구독중인 모두에게 브로드캐스팅하는거
@@ -48,16 +53,21 @@ public class ChatController{
     }
     //입장처리 클라이언트가 /app/chat.join으로 메시지를 보내면 실행됨
     @MessageMapping("/chat.join")
-    public void joinChat(@Payload JoinRequest request,
-    		SimpMessageHeaderAccessor headerAccessor){
-    	// 1. 유저 정보 조회
-        ChatUserEntity user = userService.findById(request.getUserId());
-        //2.1 유저정보넣기
+    public void joinChat(SimpMessageHeaderAccessor headerAccessor){
+
+        // 세션에서 userId 꺼내기 (StompHandler가 저장한 값)
+        Long userId = (Long) headerAccessor.getSessionAttributes().get("userId");
+
+        // 디비에서 유저 정보 조회
+        ChatUserEntity user = userService.findById(userId);
+
+        // 접속자명단에 해당사용자 추가!!!!
         userService.addActiveUser(user.getUserName());
-        // 2.2 웹소켓 세션에 사용자 이름 저장! (퇴장 감지용)
-        // ★ 중요: 여기서 저장한 "userName"을 나중에 Listener에서 꺼내 씁니다.
+
+        //세션에 username 저장 (퇴장 감지 때문에 필요한거 )
         headerAccessor.getSessionAttributes().put("username", user.getUserName());
-        //3.서비스 호출
+
+        // 입장 처리(조인서비스호출)
         chatService.userJoin(user.getUserName());
     }
     
