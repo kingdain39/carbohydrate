@@ -1,4 +1,4 @@
-package kr.co.carbohydrate.chat.config;
+package kr.co.carbohydrate.chat.handler;
 
 import kr.co.carbohydrate.chat.jwt.JwtProvider;
 import lombok.RequiredArgsConstructor;
