@@ -37,7 +37,14 @@ public class ChatController{
     }
 
     @MessageMapping("/chat.whisper")
-    public void sendWhisper(@Payload WhisperRequest request) {
+    public void sendWhisper(@Payload WhisperRequest request,
+                            SimpMessageHeaderAccessor headerAccessor
+    ) {
+
+        //senderId 덮어쓰기(클라이언트가 보낸값을 그대로 쓰지않고 세션에서 정확한 userId를 추출해서 서버로 넘기기위함) : 먼저 세션 userId추출
+        Long userId = (Long) headerAccessor.getSessionAttributes().get("userId");
+        //request 의 senderId로 덮어씀.
+        request.setSenderId(userId);
         ChatMessageResponse response = chatService.saveWhisperMessage(request);
 
         messagingTemplate.convertAndSendToUser( // 특정유저의 /queue/whisper에다가만 브로드캐슽ㅇ
