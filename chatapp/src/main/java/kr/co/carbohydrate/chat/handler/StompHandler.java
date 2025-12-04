@@ -43,7 +43,7 @@ public class StompHandler implements ChannelInterceptor {
 
                 log.info("인증 성공! 접속자 ID: {}", userId);
 
-                // (선택사항) 여기서 세션에 userId를 심어줄 수도 있음
+                // (선택사항) 여기서 세션에 userId를 심어줄 수도 있음. 세션에 '이름표' 붙이기
                 accessor.getSessionAttributes().put("userId", userId);
 
             } catch (Exception e) {
