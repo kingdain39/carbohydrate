@@ -20,5 +20,5 @@ public interface MessageRepository extends JpaRepository<MessageEntity, Long> {
 	           "OR m.senderId = :userId " +
 	           "OR m.recipientId = :userId " +
 	           "ORDER BY m.sendAt ASC")
-	List<MessageEntity> findHistoryByUserId(@Param("myId") Long myId);
+	List<MessageEntity> findHistoryByUserId(@Param("userId") Long myId);
 }
