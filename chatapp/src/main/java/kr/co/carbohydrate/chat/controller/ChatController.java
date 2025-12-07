@@ -45,18 +45,15 @@ public class ChatController{
         Long userId = (Long) headerAccessor.getSessionAttributes().get("userId");
         //request 의 senderId로 덮어씀.
         request.setSenderId(userId);
+
+
         ChatMessageResponse response = chatService.saveWhisperMessage(request);
 
-        messagingTemplate.convertAndSendToUser( // 특정유저의 /queue/whisper에다가만 브로드캐슽ㅇ
-                response.getSenderName(),  //이거는 자기가 남에게 보낸 귓속말 메세지
-                "/queue/whisper",
-                response
-        );
-        messagingTemplate.convertAndSendToUser(
-                response.getRecipientName(), //이건 수신자용 남으로부터 받은 귓속말메세지띄워주기
-                "/queue/whisper",
-                response
-        );
+        // 1. 나(보낸 사람)에게도 보냄 (내 화면에 뜨게 하기 위함)
+        messagingTemplate.convertAndSend("/topic/private/" + response.getSenderName(), response);
+        System.out.println("귓속말 전송 -> " + response.getRecipientName());
+        // 2. 상대방(받는 사람)에게 보냄
+        messagingTemplate.convertAndSend("/topic/private/" + response.getRecipientName(), response);
     }
     //입장처리 클라이언트가 /app/chat.join으로 메시지를 보내면 실행됨
     @MessageMapping("/chat.join")
