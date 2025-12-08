@@ -95,13 +95,18 @@ public class ChatService {
 	     * ID로 저장된 보낸이/받는이 정보를 실제 이름(UserName)으로 변환하여 전송.
 	     */
 		public void loadHistory(String username) {
+			System.out.println("====== [DEBUG] loadHistory 시작: " + username + " ======");
+
 			// TODO Auto-generated method stub
 			//1. 요청한 유저 정보 조회
 			ChatUserEntity me = userService.findByUserName(username);
 			// 2. DB에서 권한이 있는 모든 메시지 조회
 	        List<MessageEntity> historyEntities = messageRepository.findHistoryByUserId(me.getId());
-	        
-	        if (historyEntities.isEmpty()) return;
+
+	       if (historyEntities.isEmpty()) {
+				System.out.println("DEBUG: DB에 저장된 대화 내용이 하나도 없습니다. 전송하지 않고 종료합니다.");
+				return;
+			}
 	        
 	        // 3. 메시지 리스트에 등장하는 모든 유저 ID 수집 (senderId, recipientId)
 	        Set<Long> userIds = new HashSet<>();
@@ -131,15 +136,13 @@ public class ChatService {
 	                    return toResponse(msg, senderName, recipientName, type);
 	                })
 	                .collect(Collectors.toList());
-	        
+
 	        // 7. 해당 유저에게만 히스토리 리스트 전송
 	        // 클라이언트는 /user/queue/history 를 구독하고 있어야 함
-	        messagingTemplate.convertAndSendToUser(
-	                username, 
-	                "/queue/history", 
-	                responseList
-	        );
-	    
+			messagingTemplate.convertAndSend(
+					"/topic/history/" + me.getId(),  // 예: /topic/history/4
+					responseList
+			);
 		}
 		
 		//유저입장
