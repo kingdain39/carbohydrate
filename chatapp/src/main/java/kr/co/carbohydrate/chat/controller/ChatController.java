@@ -70,7 +70,8 @@ public class ChatController{
 
         //세션에 username 저장 (퇴장 감지 때문에 필요한거 )
         headerAccessor.getSessionAttributes().put("username", user.getUserName());
-
+        //principal 설정
+        headerAccessor.setUser(() -> user.getUserName());
         // 입장 처리(조인서비스호출)
         chatService.userJoin(user.getUserName());
     }
