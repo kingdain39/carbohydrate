@@ -30,7 +30,9 @@ public class AuthService {
 
         userRepository.save(user);
 
-        return new UserResponse(user.getId(), user.getUserName(), null);
+        String token = jwtProvider.createToken(user.getId(), user.getUserName());
+        return new UserResponse(user.getId(), user.getUserName(), token);
+
     }
 
     // 로그인
