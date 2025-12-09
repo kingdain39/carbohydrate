@@ -15,8 +15,12 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/users/**").permitAll()
-                        .anyRequest().permitAll()
+                		 .requestMatchers("/api/v1/users/signup").permitAll()
+                         .requestMatchers("/api/v1/users/login").permitAll()
+                         .requestMatchers("/ws/**").permitAll()  // WebSocket 연결
+                         
+                         // 나머지는 인증 필요
+                         .anyRequest().authenticated()  
                 );
 
         return http.build();
